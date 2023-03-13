@@ -1,0 +1,14 @@
+raylib-master
+_build
+_bin
+.vs
+_app
+_lib
+raylib-master
+premake5
+premake5.exe
+premake5.lua
+premake5.osx
+premake-mingw.bat
+premake-VisualStudio.bat
+raylib_premake5.lua
