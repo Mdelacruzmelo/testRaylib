@@ -9,8 +9,8 @@ int main(void)
 	InitAudioDevice();
 	SetTargetFPS(30);
 
-	Game G = Game();
-	InitWindow(G.screenWidth, G.screenHeight, "raylib game template");
+	Game game = Game();
+	InitWindow(game.screenWidth, game.screenHeight, "raylib game template");
 
 	while (!WindowShouldClose())
 	{
@@ -18,13 +18,13 @@ int main(void)
 
 		ClearBackground(BLACK);
 
-		switch (G.screen)
+		switch (game.screen)
 		{
-		case TITLE: G.TitleScreen(); break;
-		case LOADING: G.LoadingScreen(); break;
-		case GAME: G.GameScreen(); break;
-		case SUCCESS: G.SuccessScreen(); break;
-		case FAILURE: G.FailureScreen(); break;
+		case TITLE: game.TitleScreen(); break;
+		case LOADING: game.LoadingScreen(); break;
+		case GAME: game.GameScreen(); break;
+		case SUCCESS: game.SuccessScreen(); break;
+		case FAILURE: game.FailureScreen(); break;
 		default: break;
 		}
 

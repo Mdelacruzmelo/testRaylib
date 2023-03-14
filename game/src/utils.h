@@ -8,3 +8,9 @@ enum E_Screen
 	FAILURE,
 	LOADING,
 };
+
+struct SaveData
+{
+	unsigned int length;
+	char* text;
+};

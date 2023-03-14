@@ -13,7 +13,21 @@ void Game::TitleScreen() {
 
 	DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), BLACK);
 	DrawText("Encuentra al objeto escondido", 150, 180, 36, WHITE);
-	DrawText("Pulsa ENTER para empezar", 150, 220, 20, WHITE);
+	DrawText("Pulsa ENTER para empezar", 150, 220, 20, GREEN);
+
+	SaveData data = LoadData();
+
+	if (data.length > 0) {
+
+		int* prevRecords = GetRecords(data.text);
+
+		DrawText("Mejores puntuaciones", 650, 440, 30, WHITE);
+
+		for (int i = 0; i < 3; i++) {
+			DrawText(TextFormat("%d", prevRecords[i]), 840, 480 + (50 * i), 36, GOLD);
+		}
+
+	}
 
 	if (IsKeyPressed(KEY_ENTER))
 	{
@@ -71,8 +85,8 @@ void Game::GameScreen() {
 	float GrowGaminAlpha = timeGaming / GAME_TIME;
 	float GameBarWidth = GetScreenWidth() * GrowGaminAlpha;
 
-	// Si no casteo a int, sale un número super raro :/
-	int timeLeft = GAME_TIME - (int)(GrowGaminAlpha * GAME_TIME);
+	// Si no casteo a int, salen números super raros
+	timeLeft = GAME_TIME - (int)(GrowGaminAlpha * GAME_TIME);
 
 	DrawRectangle(0, 0, (int)GameBarWidth, 30, WHITE);
 	DrawText(
@@ -154,6 +168,7 @@ void Game::GameScreen() {
 				count == textureNumber2 ||
 				count == textureNumber3
 				) {
+				DrawRectangleLines((int)randomPositions[count].x, (int)randomPositions[count].y, 60, 60, ORANGE);
 				DrawTextureV(textures[count], randomPositions[count], WHITE);
 			}
 			else {
@@ -170,11 +185,36 @@ void Game::GameScreen() {
 
 	if (timeLeft == 0) screen = FAILURE;
 	if (gameSuccess) screen = SUCCESS;
-
-
 }
 
 void Game::SuccessScreen() {
+
+	if (!gameSaved) {
+
+		int recordNumber = timeLeft * 1000;
+		std::string strRecord = std::to_string(recordNumber);
+		const int recordStrLength = strRecord.length();
+
+		char* record = new char[recordStrLength + 1]; // \0  for the end of char*
+		strcpy(record, strRecord.c_str());
+
+		SaveData data = LoadData();
+
+		if (data.length > 0) {
+
+			SaveRecord(recordNumber, data.text);
+
+		}
+		else {
+
+			DrawText("Error, could recover data.", 140, 140, 20, WHITE);
+			DrawText("Press ENTER to quit game", 140, 200, 20, WHITE);
+
+			if (IsKeyPressed(KEY_ENTER)) CloseWindow();
+
+		}
+
+	}
 
 }
 
@@ -294,5 +334,101 @@ void Game::SoundClick(int newNumberClicked) {
 		PlaySound(clickSound);
 		numberClicked = newNumberClicked;
 	}
+
+}
+
+SaveData Game::LoadData() {
+
+	// Previous saved data (char previous record to int length)
+	char* savedData = LoadFileText("resources/savings/main.txt");
+	std::string strSaveData = std::to_string(sizeof(savedData));
+	const unsigned int lengthSavings = strSaveData.length();
+
+	return SaveData{
+		lengthSavings,
+		savedData
+	};
+}
+
+void Game::SaveRecord(int recordNumber, char* savedData) {
+
+	if (!gameSaved)
+	{
+		// Read previous data
+
+		int* results = new int[3];
+		int* resultsLengths = new int[3];
+		const char* delimiter = ",";
+		int* count = new int[0];
+
+		const char** resultsPointers = TextSplit(savedData, *delimiter, count);
+
+		std::string str1 = resultsPointers[0];
+		std::string str2 = resultsPointers[1];
+		std::string str3 = resultsPointers[2];
+
+		results[0] = std::stoi(str1);
+		results[1] = std::stoi(str2);
+		results[2] = std::stoi(str3);
+
+		DrawText(str1.c_str(), 140, 140, 20, WHITE);
+
+		if (recordNumber > results[0]) {
+			results[0] = recordNumber;
+			str1 = std::to_string(recordNumber);
+		}
+		else if (recordNumber > results[1]) {
+			results[1] = recordNumber;
+			str2 = std::to_string(recordNumber);
+		}
+		else if (recordNumber > results[2]) {
+			results[2] = recordNumber;
+			str3 = std::to_string(recordNumber);
+		}
+
+		resultsLengths[0] = str1.length();
+		resultsLengths[1] = str2.length();
+		resultsLengths[2] = str3.length();
+
+		char* dataToSave = new char[resultsLengths[0] + resultsLengths[1] + resultsLengths[2] + 1];
+
+		char* record1 = new char[resultsLengths[0]];
+		strcpy(record1, str1.c_str());
+
+		char* record2 = new char[resultsLengths[0]];
+		strcpy(record2, str2.c_str());
+
+		char* record3 = new char[resultsLengths[0]];
+		strcpy(record3, str3.c_str());
+
+		dataToSave = strcat(record1, ",");
+		dataToSave = strcat(dataToSave, record2);
+		dataToSave = strcat(dataToSave, ",");
+		dataToSave = strcat(dataToSave, record3);
+
+		SaveFileText("resources/savings/main.txt", dataToSave);
+
+		gameSaved = true;
+	}
+
+}
+
+int* Game::GetRecords(char* savedTextData) {
+
+	int* results = new int[3];
+	const char* delimiter = ",";
+	int* count = new int[0];
+
+	const char** resultsPointers = TextSplit(savedTextData, *delimiter, count);
+
+	std::string str1 = resultsPointers[0];
+	std::string str2 = resultsPointers[1];
+	std::string str3 = resultsPointers[2];
+
+	results[0] = std::stoi(str1);
+	results[1] = std::stoi(str2);
+	results[2] = std::stoi(str3);
+
+	return results;
 
 }

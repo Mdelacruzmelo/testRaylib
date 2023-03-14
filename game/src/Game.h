@@ -29,6 +29,7 @@ public:
 	int totalTextures = 36;
 	int timeLeft;
 	bool gameSuccess;
+	bool gameSaved = false;
 	Texture2D* textures = new Texture2D[totalTextures];
 
 	// Effects
@@ -54,5 +55,9 @@ public:
 	void DrawCursor();
 	bool IsHoveringImage(Vector2 pos);
 	bool ClickedOnImage(Vector2 pos);
+
+	SaveData LoadData();
+	void SaveRecord(int record, char* savedData);
+	int* GetRecords(char* savedData);
 
 };
