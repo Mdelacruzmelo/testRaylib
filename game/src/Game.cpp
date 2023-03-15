@@ -5,34 +5,38 @@
 #include <sstream>
 
 Game::Game() {
-	hoverSound = LoadSound("resources/sounds/Hover_short.wav");
+	hoverSound = LoadSound("resources/sounds/Hover.wav");
 	clickSound = LoadSound("resources/sounds/Click.wav");
+	failureSound = LoadSound("resources/sounds/Failure.wav");
+	successSound = LoadSound("resources/sounds/Success.wav");
 }
 
 void Game::TitleScreen() {
 
 	DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), BLACK);
-	DrawText("Encuentra al objeto escondido", 150, 180, 36, WHITE);
-	DrawText("Pulsa ENTER para empezar", 150, 220, 20, GREEN);
+	DrawText("Ejercicio Raylib 02", 150, 180, 36, WHITE);
+	DrawText("Pulsa ENTER para empezar", 150, 230, 20, GREEN);
 
-	SaveData data = LoadData();
+	currentLevel = 0;
+	timeAccummulated = 0;
 
-	if (data.length > 0) {
+	static SaveData myTitleData = LoadData();
 
-		int* prevRecords = GetRecords(data.text);
+	if (!dataLoaded) {
+		DrawText("Pulsa ENTER para empezar", 450, 430, 20, GREEN);
+		myTitleData = LoadData();
+		dataLoaded = true;
+	}
 
+	if (myTitleData.length > 0) {
+		int* prevRecords = GetRecords(myTitleData.text);
 		DrawText("Mejores puntuaciones", 650, 440, 30, WHITE);
-
 		for (int i = 0; i < 3; i++) {
 			DrawText(TextFormat("%d", prevRecords[i]), 840, 480 + (50 * i), 36, GOLD);
 		}
-
 	}
 
-	if (IsKeyPressed(KEY_ENTER))
-	{
-		screen = LOADING;
-	}
+	if (IsKeyPressed(KEY_ENTER)) screen = LOADING;
 
 }
 
@@ -51,12 +55,15 @@ void Game::LoadingScreen() {
 		WHITE);
 
 	DrawText("Tienes que encontrar 3 objetos", 150, 110, 24, WHITE);
-	DrawRectangle(180, 150, 80, 80, WHITE);
-	DrawRectangle(265, 150, 80, 80, WHITE);
-	DrawRectangle(350, 150, 80, 80, WHITE);
+	DrawRectangleLines(180, 150, 80, 80, ORANGE);
+	DrawText("?", 200, 160, 50, GOLD);
+	DrawRectangleLines(265, 150, 80, 80, ORANGE);
+	DrawText("?", 285, 160, 50, GOLD);
+	DrawRectangleLines(350, 150, 80, 80, ORANGE);
+	DrawText("?", 370, 160, 50, GOLD);
 
 	DrawText("Si los encuenras antes de que acabe el tiempo", 150, 300, 24, WHITE);
-	DrawText("acumularás tiempo para el siguiente nivel", 150, 335, 24, WHITE);
+	DrawText("ganaras tiempo para el siguiente nivel", 150, 335, 24, WHITE);
 	DrawText("+10s", 180, 370, 40, GREEN);
 
 	DrawText("Marca una puntuacion insuperable al terminar los 3 niveles", 150, 490, 24, WHITE);
@@ -65,6 +72,7 @@ void Game::LoadingScreen() {
 	loadingBarPercentage = (int)((BarWidth * 100) / GetScreenWidth());
 	if (IsKeyPressed(KEY_ENTER) || loadingBarPercentage >= 100)
 	{
+		Reinitialize();
 		screen = GAME;
 	}
 }
@@ -82,11 +90,11 @@ void Game::GameScreen() {
 	// -------------- Draw loading bar -------------- 
 
 	timeGaming += GetFrameTime();
-	float GrowGaminAlpha = timeGaming / GAME_TIME;
+	float GrowGaminAlpha = timeGaming / (GAME_TIME + timeAccummulated);
 	float GameBarWidth = GetScreenWidth() * GrowGaminAlpha;
 
 	// Si no casteo a int, salen números super raros
-	timeLeft = GAME_TIME - (int)(GrowGaminAlpha * GAME_TIME);
+	timeLeft = (GAME_TIME + timeAccummulated) - (int)(GrowGaminAlpha * (GAME_TIME + timeAccummulated));
 
 	DrawRectangle(0, 0, (int)GameBarWidth, 30, WHITE);
 	DrawText(
@@ -101,17 +109,36 @@ void Game::GameScreen() {
 	static int textureNumber1 = GetRandomValue(0, (totalTextures - 1));
 	static int textureNumber2 = GetRandomValue(0, (totalTextures - 1));
 	static int textureNumber3 = GetRandomValue(0, (totalTextures - 1));
-	static bool fruit1Found = false;
-	static bool fruit2Found = false;
-	static bool fruit3Found = false;
+	static bool fruit1Found;
+	static bool fruit2Found;
+	static bool fruit3Found;
+
+	static int* randomNumbers = GetRandomNumbersExcept(textureNumber1, textureNumber2, textureNumber3);
+
+	if (gameReinitialized) {
+
+		textureNumber1 = GetRandomValue(0, (totalTextures - 1));
+		textureNumber2 = GetRandomValue(0, (totalTextures - 1));
+		textureNumber3 = GetRandomValue(0, (totalTextures - 1));
+		fruit1Found = false;
+		fruit2Found = false;
+		fruit3Found = false;
+
+		gameReinitialized = false;
+
+		while (textureNumber1 == textureNumber2) {
+			textureNumber2 = GetRandomValue(0, (totalTextures - 1));
+		}
+		while (textureNumber3 == textureNumber1 || textureNumber3 == textureNumber2) {
+			textureNumber3 = GetRandomValue(0, (totalTextures - 1));
+		}
+
+		randomNumbers = GetRandomNumbersExcept(textureNumber1, textureNumber2, textureNumber3);
+	}
+
 	gameSuccess = fruit1Found && fruit2Found && fruit3Found;
 
-	while (textureNumber1 == textureNumber2) {
-		textureNumber2 = GetRandomValue(0, (totalTextures - 1));
-	}
-	while (textureNumber3 == textureNumber1 || textureNumber3 == textureNumber2) {
-		textureNumber3 = GetRandomValue(0, (totalTextures - 1));
-	}
+
 
 	DrawRectangleLines(40, 50, 80, 80, ORANGE);
 	if (!fruit1Found) DrawTexture(textures[textureNumber1], 50, 50, WHITE);
@@ -128,7 +155,7 @@ void Game::GameScreen() {
 	static float startY = 200.f;
 	static int count = 0;
 	static Vector2* randomPositions = GetRandomVectors();
-	static int* randomNumbers = GetRandomNumbersExcept(textureNumber1, textureNumber2, textureNumber3);
+
 
 	for (int i = 0; i < 8; i++) {
 
@@ -168,7 +195,8 @@ void Game::GameScreen() {
 				count == textureNumber2 ||
 				count == textureNumber3
 				) {
-				DrawRectangleLines((int)randomPositions[count].x, (int)randomPositions[count].y, 60, 60, ORANGE);
+				// Draw help
+				// DrawRectangleLines((int)randomPositions[count].x, (int)randomPositions[count].y, 60, 60, ORANGE);
 				DrawTextureV(textures[count], randomPositions[count], WHITE);
 			}
 			else {
@@ -176,33 +204,47 @@ void Game::GameScreen() {
 			}
 
 			count++;
-
 		}
-
 	}
 
 	DrawCursor();
 
-	if (timeLeft == 0) screen = FAILURE;
+	if (timeLeft == 0) {
+		Reinitialize();
+		screen = FAILURE;
+	}
 	if (gameSuccess) screen = SUCCESS;
 }
 
 void Game::SuccessScreen() {
 
-	if (!gameSaved) {
+	PlaySuccessSound();
 
-		int recordNumber = timeLeft * 1000;
-		std::string strRecord = std::to_string(recordNumber);
+	int recordNumber = timeLeft * 1000;
+	static int* pointsPerLevel = new int[3]; // Por si a futuro quiero guardar por nivel
+	pointsPerLevel[currentLevel] = recordNumber;
+
+	if (!timeAdded) {
+		timeAccummulated += timeLeft;
+		timeAdded = true;
+	}
+
+	if (currentLevel == 2 && !gameSaved) {
+
+		for (int i = 0; i < 3; i++) {
+			recordAccumulated += pointsPerLevel[i];
+		}
+
+		std::string strRecord = std::to_string(recordAccumulated);
 		const int recordStrLength = strRecord.length();
-
 		char* record = new char[recordStrLength + 1]; // \0  for the end of char*
 		strcpy(record, strRecord.c_str());
+		SaveData myData = LoadData();
 
-		SaveData data = LoadData();
+		if (myData.length > 0) {
 
-		if (data.length > 0) {
-
-			SaveRecord(recordNumber, data.text);
+			SaveRecord(recordAccumulated, myData.text);
+			gameSaved = true;
 
 		}
 		else {
@@ -213,12 +255,63 @@ void Game::SuccessScreen() {
 			if (IsKeyPressed(KEY_ENTER)) CloseWindow();
 
 		}
+	}
 
+	if (currentLevel < 2) {
+
+		DrawText("Bien hecho!", 150, 240, 36, WHITE);
+		DrawText("acumulaste", 150, 290, 24, WHITE);
+		DrawText(TextFormat("+%d segundos", timeAccummulated), 290, 290, 24, GREEN);
+		DrawText("Preparate para la siguiente ronda", 150, 350, 24, GOLD);
+
+	}
+	else {
+
+		DrawText("Felicidades!", 150, 240, 36, WHITE);
+		DrawText(TextFormat("ganaste %d puntos!", recordAccumulated), 150, 290, 24, GOLD);
+
+	}
+
+	static int loadingTime = 3;
+
+	WAITING_AFTER_GAME += GetFrameTime();
+	float GrowAlpha = (float)(WAITING_AFTER_GAME / loadingTime);
+	float BarWidth = GetScreenWidth() * GrowAlpha;
+
+	DrawRectangle(0, 0, (int)BarWidth, 30, WHITE);
+
+	if ((BarWidth * 100) / GetScreenWidth() >= 100)
+	{
+		Reinitialize();
+		currentLevel += 1;
+
+		if (currentLevel < 3) screen = GAME;
+		else screen = TITLE;
 	}
 
 }
 
 void Game::FailureScreen() {
+
+	PlayFailureSound();
+
+	DrawText("Que pena", 150, 240, 36, WHITE);
+	DrawText("no sirves para esto :(", 150, 290, 24, WHITE);
+
+	static int failureTime = 5;
+
+	WAITING_AFTER_GAME += GetFrameTime();
+	float GrowAlpha = (float)(WAITING_AFTER_GAME / failureTime);
+	float BarWidth = GetScreenWidth() * GrowAlpha;
+
+	DrawRectangle(0, 0, (int)BarWidth, 30, WHITE);
+
+	if ((BarWidth * 100) / GetScreenWidth() >= 100)
+	{
+		currentLevel = 0;
+		Reinitialize();
+		screen = TITLE;
+	}
 
 }
 
@@ -348,69 +441,70 @@ SaveData Game::LoadData() {
 		lengthSavings,
 		savedData
 	};
+
 }
 
 void Game::SaveRecord(int recordNumber, char* savedData) {
 
-	if (!gameSaved)
-	{
-		// Read previous data
+	// Read previous data
 
-		int* results = new int[3];
-		int* resultsLengths = new int[3];
-		const char* delimiter = ",";
-		int* count = new int[0];
+	int* results = new int[3];
+	int* resultsLengths = new int[3];
+	const char* delimiter = ",";
+	int* count = new int[0];
 
-		const char** resultsPointers = TextSplit(savedData, *delimiter, count);
+	const char** resultsPointers = TextSplit(savedData, *delimiter, count);
 
-		std::string str1 = resultsPointers[0];
-		std::string str2 = resultsPointers[1];
-		std::string str3 = resultsPointers[2];
+	std::string str1 = resultsPointers[0];
+	std::string str2 = resultsPointers[1];
+	std::string str3 = resultsPointers[2];
 
-		results[0] = std::stoi(str1);
-		results[1] = std::stoi(str2);
-		results[2] = std::stoi(str3);
+	results[0] = std::stoi(str1);
+	results[1] = std::stoi(str2);
+	results[2] = std::stoi(str3);
 
-		DrawText(str1.c_str(), 140, 140, 20, WHITE);
+	DrawText(str1.c_str(), 140, 140, 20, WHITE);
 
-		if (recordNumber > results[0]) {
-			results[0] = recordNumber;
-			str1 = std::to_string(recordNumber);
-		}
-		else if (recordNumber > results[1]) {
-			results[1] = recordNumber;
-			str2 = std::to_string(recordNumber);
-		}
-		else if (recordNumber > results[2]) {
-			results[2] = recordNumber;
-			str3 = std::to_string(recordNumber);
-		}
-
-		resultsLengths[0] = str1.length();
-		resultsLengths[1] = str2.length();
-		resultsLengths[2] = str3.length();
-
-		char* dataToSave = new char[resultsLengths[0] + resultsLengths[1] + resultsLengths[2] + 1];
-
-		char* record1 = new char[resultsLengths[0]];
-		strcpy(record1, str1.c_str());
-
-		char* record2 = new char[resultsLengths[0]];
-		strcpy(record2, str2.c_str());
-
-		char* record3 = new char[resultsLengths[0]];
-		strcpy(record3, str3.c_str());
-
-		dataToSave = strcat(record1, ",");
-		dataToSave = strcat(dataToSave, record2);
-		dataToSave = strcat(dataToSave, ",");
-		dataToSave = strcat(dataToSave, record3);
-
-		SaveFileText("resources/savings/main.txt", dataToSave);
-
-		gameSaved = true;
+	if (recordNumber > results[0]) {
+		results[2] = results[1];
+		str3 = std::to_string(results[2]);
+		results[1] = results[0];
+		str2 = std::to_string(results[1]);
+		results[0] = recordNumber;
+		str1 = std::to_string(results[0]);
+	}
+	else if (recordNumber > results[1]) {
+		results[2] = results[1];
+		str3 = std::to_string(results[2]);
+		results[1] = recordNumber;
+		str2 = std::to_string(results[1]);
+	}
+	else if (recordNumber > results[2]) {
+		results[2] = recordNumber;
+		str3 = std::to_string(results[2]);
 	}
 
+	resultsLengths[0] = str1.length();
+	resultsLengths[1] = str2.length();
+	resultsLengths[2] = str3.length();
+
+	char* dataToSave = new char[resultsLengths[0] + resultsLengths[1] + resultsLengths[2] + 1];
+
+	char* record1 = new char[resultsLengths[0]];
+	strcpy(record1, str1.c_str());
+
+	char* record2 = new char[resultsLengths[0]];
+	strcpy(record2, str2.c_str());
+
+	char* record3 = new char[resultsLengths[0]];
+	strcpy(record3, str3.c_str());
+
+	dataToSave = strcat(record1, ",");
+	dataToSave = strcat(dataToSave, record2);
+	dataToSave = strcat(dataToSave, ",");
+	dataToSave = strcat(dataToSave, record3);
+
+	SaveFileText("resources/savings/main.txt", dataToSave);
 }
 
 int* Game::GetRecords(char* savedTextData) {
@@ -430,5 +524,44 @@ int* Game::GetRecords(char* savedTextData) {
 	results[2] = std::stoi(str3);
 
 	return results;
+
+}
+
+void Game::Reinitialize() {
+
+	if (!gameReinitialized) {
+
+		gameSaved = false;
+		gameReinitialized = true;
+		recordAccumulated = 0;
+		timeInLoading = 0;
+		timeGaming = 0;
+		timeLeft = 0;
+		gameSuccess = false;
+		WAITING_AFTER_GAME = 0;
+		playedResultSound = false;
+		timeAdded = false;
+		dataLoaded = false;
+	}
+
+	gameReinitialized = true;
+}
+
+void Game::PlayFailureSound()
+{
+	if (!playedResultSound) {
+		SetSoundVolume(failureSound, 1);
+		PlaySound(failureSound);
+		playedResultSound = true;
+	}
+}
+
+void Game::PlaySuccessSound() {
+
+	if (!playedResultSound) {
+		SetSoundVolume(successSound, 1);
+		PlaySound(successSound);
+		playedResultSound = true;
+	}
 
 }

@@ -4,7 +4,7 @@
 #include <string>
 #include <sstream>
 
-int main(void)
+int main()
 {
 	InitAudioDevice();
 	SetTargetFPS(30);
